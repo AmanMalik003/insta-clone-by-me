@@ -6,16 +6,30 @@ import useAuthStore from "../store/authStore";
 
 const useLogin = () => {
 	const showToast = useShowToast();
-	const [signInWithEmailAndPassword, loading, error] = useSignInWithEmailAndPassword(auth);
+	const [signInWithEmailAndPassword, , loading, error] = useSignInWithEmailAndPassword(auth);
 	const loginUser = useAuthStore((state) => state.login);
 
 	const login = async (inputs) => {
-		if (!inputs.email || !inputs.password) {
-			return showToast("Error", "Please fill all the fields", "error");
+		// Validate email format
+		const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		if (!inputs.email || !emailPattern.test(inputs.email)) {
+			showToast("Error", "Please enter a valid email address", "error");
+			return;
 		}
+	
+		if (!inputs.password) {
+			showToast("Error", "Please fill in the password field", "error");
+			return;
+		}
+	
+		if (!inputs.fullName || !inputs.username) {
+			showToast("Error", "Please fill in all the fields", "error");
+			return;
+		}
+	
 		try {
 			const userCred = await signInWithEmailAndPassword(inputs.email, inputs.password);
-
+	
 			if (userCred) {
 				const docRef = doc(firestore, "users", userCred.user.uid);
 				const docSnap = await getDoc(docRef);
@@ -23,7 +37,11 @@ const useLogin = () => {
 				loginUser(docSnap.data());
 			}
 		} catch (error) {
-			showToast("Error", error.message, "error");
+			if (error.code === "auth/invalid-email") {
+				showToast("Error", "Invalid email address. Please provide a valid email address.", "error");
+			} else {
+				showToast("Error", "Login failed. Please try again.", "error");
+			}
 		}
 	};
 
